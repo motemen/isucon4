@@ -1,10 +1,10 @@
 package Isu4Final::Web;
 
-use strict;
+use 5.014;
 use warnings;
 use utf8;
 use Kossy;
-use Redis;
+use Redis::Fast;
 use Fcntl ':flock';
 
 sub ads_dir {
@@ -31,10 +31,9 @@ sub advertiser_id {
     return $c->req->header('X-Advertiser-Id');
 }
 
-my $redis;
 sub redis {
-    $redis ||= Redis->new(server => '10.11.54.191:6379'); # isu31a
-    return $redis;
+    state $redis = Redis::Fast->new(server => '10.11.54.191:6379'); # isu31a
+    $redis;
 }
 
 sub ad_key {
