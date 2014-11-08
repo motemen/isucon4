@@ -8,8 +8,6 @@ use Redis::Fast;
 use JSON;
 use Cache::Memcached::Fast;
 use Sereal qw(encode_sereal decode_sereal);
-use IO::Compress::Gzip;
-use IO::Uncompress::Gunzip;
 
 sub advertiser_id {
     my ( $self, $c ) = @_;
@@ -28,10 +26,6 @@ sub memd {
     serialize_methods => [
         \&encode_sereal,
         \&decode_sereal,
-    ],
-    compress_methods => [
-        \&IO::Compress::Gzip::gzip,
-        \&IO::Uncompress::Gunzip::gunzip,
     ],
   });
 }

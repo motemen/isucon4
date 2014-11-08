@@ -5,5 +5,3 @@ requires "Starlet";
 requires 'JSON::XS';
 requires 'Cache::Memcached::Fast';
 requires 'Sereal';
-requires 'IO::Compress::Gzip';
-requires 'IO::Uncompress::Gunzip';
