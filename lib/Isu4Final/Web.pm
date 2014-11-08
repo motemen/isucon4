@@ -4,7 +4,7 @@ use 5.014;
 use warnings;
 use utf8;
 use Kossy;
-use Redis::Jet;
+use Redis::Fast;
 use JSON;
 
 sub advertiser_id {
@@ -13,7 +13,7 @@ sub advertiser_id {
 }
 
 sub redis {
-    state $redis = Redis::Jet->new(server => '10.11.54.191:6379'); # isu31a
+    state $redis = Redis::Fast->new(server => '10.11.54.191:6379'); # isu31a
     $redis;
 }
 
@@ -43,7 +43,7 @@ sub slot_key {
 
 sub next_ad_id {
     my $self = shift;
-    $self->redis->command('incr', 'isu4:ad-next');
+    $self->redis->incr('isu4:ad-next');
 }
 
 sub log_key {
@@ -56,7 +56,7 @@ sub next_ad {
     my $slot = $c->args->{slot};
     my $key = $self->slot_key($slot);
 
-    my $id  = $self->redis->command('rpoplpush', $key, $key);
+    my $id = $self->redis->rpoplpush($key, $key);
     unless ( $id ) {
         return undef;
     }
@@ -66,7 +66,7 @@ sub next_ad {
         return $ad;
     }
     else {
-        $self->redis->command('lrem', $key, 0, $id);
+        $self->redis->lrem($key, 0, $id);
         $self->next_ad($c);
     }
 }
@@ -74,7 +74,7 @@ sub next_ad {
 sub get_ad {
     my ( $self, $c, $slot, $id ) = @_;
     my $key = $self->ad_key($slot, $id);
-    my %ad  = @{ $self->redis->command('hgetall', $key) || [] };
+    my %ad  = $self->redis->hgetall($key);
 
     return undef if !%ad;
 
@@ -98,9 +98,9 @@ sub decode_user_key {
 sub get_log {
     my ( $self, $id ) = @_;
 
-    my $list = $self->redis->command('lrange', $self->log_key($id), 0, -1);
+    my @list = $self->redis->lrange($self->log_key($id), 0, -1);
     my $result = {};
-    for my $line (@$list) {
+    for my $line (@list) {
         my ( $ad_id, $user, $agent ) = split "\t", $line;
         $result->{$ad_id} = [] unless $result->{$ad_id};
         my $user_attr = $self->decode_user_key($user);
@@ -139,7 +139,7 @@ post '/slots/{slot:[^/]+}/ads' => sub {
     my $id  = $self->next_ad_id;
     my $key = $self->ad_key($slot, $id);
 
-    $self->redis->command('hmset',
+    $self->redis->hmset(
         $key,
         'slot'        => $slot,
         'id'          => $id,
@@ -155,9 +155,9 @@ post '/slots/{slot:[^/]+}/ads' => sub {
     };
     my $content = do { local $/; <$in> };
     close $in;
-    $self->redis->command('set', $self->asset_key($slot, $id), $content);
-    $self->redis->command('rpush', $self->slot_key($slot), $id);
-    $self->redis->command('sadd', $self->advertiser_key($advertiser_id), $key);
+    $self->redis->set($self->asset_key($slot, $id), $content);
+    $self->redis->rpush($self->slot_key($slot), $id);
+    $self->redis->sadd($self->advertiser_key($advertiser_id), $key);
 
     $c->render_json($self->get_ad($c, $slot, $id));
 };
@@ -207,7 +207,7 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/asset' => sub {
 
     if ( $ad ) {
         $c->res->content_type($ad->{type} || 'video/mp4');
-        my $data = $self->redis->command('get', $self->asset_key($slot, $id));
+        my $data = $self->redis->get($self->asset_key($slot, $id));
 
 
         my $range = $c->req->header('Range');
@@ -261,14 +261,14 @@ post '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/count' => sub {
 
     my $key = $self->ad_key($slot, $id);
 
-    unless ( $self->redis->command('exists', $key) ) {
+    unless ( $self->redis->exists($key) ) {
         $c->res->status(404);
         $c->res->content_type('application/json');
         $c->res->body(json->encode({ error => 'Not Found' }));
         return $c->res;
     }
 
-    $self->redis->command('hincrby', $key, 'impressions', 1);
+    $self->redis->hincrby($key, 'impressions', 1);
 
     $c->res->status(204);
     return $c->res;
@@ -290,7 +290,7 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/redirect' => sub {
     }
 
     my $value = join "\t", $ad->{id}, $c->req->cookies->{isuad}, $c->req->env->{'HTTP_USER_AGENT'};
-    $self->redis->command('rpush', $self->log_key($ad->{advertiser}), $value);
+    $self->redis->rpush($self->log_key($ad->{advertiser}), $value);
 
     $c->redirect($ad->{destination});
 };
@@ -304,11 +304,11 @@ get '/me/report' => sub {
         $c->halt(401);
     }
 
-    my $ad_keys = $self->redis->command('smembers', $self->advertiser_key($advertiser_id) );
+    my $ad_keys = $self->redis->smembers( $self->advertiser_key($advertiser_id) );
 
     my $report = {};
     for my $ad_key ( @$ad_keys ) {
-        my %ad = @{ $self->redis->command('hgetall', $ad_key) };
+        my %ad = $self->redis->hgetall($ad_key);
         next unless %ad;
         $ad{impressions} = int($ad{impressions});
         $report->{$ad{id}} = { ad => \%ad, clicks => 0, impressions => $ad{'impressions'} };
@@ -333,9 +333,9 @@ get '/me/final_report' => sub {
     }
 
     my $reports = {};
-    my $ad_keys = $self->redis->command('smembers', $self->advertiser_key($advertiser_id) );
+    my $ad_keys = $self->redis->smembers( $self->advertiser_key($advertiser_id) );
     for my $ad_key ( @$ad_keys ) {
-        my %ad = @{ $self->redis->command('hgetall', $ad_key) };
+        my %ad = $self->redis->hgetall($ad_key);
         next unless %ad;
         $ad{impressions} = int($ad{impressions});
         $reports->{$ad{id}} = { ad => \%ad, clicks => 0, impressions => int($ad{'impressions'}) };
@@ -379,10 +379,10 @@ get '/me/final_report' => sub {
 post '/initialize' => sub {
     my ($self, $c) = @_;
 
-    my $keys = $self->redis->command('keys', 'isu4:*');
+    my @keys = $self->redis->keys('isu4:*');
 
-    for my $key ( @$keys ) {
-        $self->redis->command('del', $key);
+    for my $key ( @keys ) {
+        $self->redis->del($key);
     }
 
     $c->res->content_type('text/plain');
