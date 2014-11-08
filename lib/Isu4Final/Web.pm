@@ -7,13 +7,6 @@ use Kossy;
 use Redis::Fast;
 use Fcntl ':flock';
 
-sub ads_dir {
-    my $self = shift;
-    my $dir = $self->root_dir . '/ads';
-    mkdir $dir unless -d $dir;
-    return $dir;
-}
-
 sub advertiser_id {
     my ( $self, $c ) = @_;
     return $c->req->header('X-Advertiser-Id');
