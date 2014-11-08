@@ -6,6 +6,8 @@ use utf8;
 use Kossy;
 use Redis::Fast;
 use JSON;
+use Cache::Memcached::Fast;
+use Sereal qw(encode_sereal decode_sereal);
 
 sub advertiser_id {
     my ( $self, $c ) = @_;
@@ -15,6 +17,17 @@ sub advertiser_id {
 sub redis {
     state $redis = Redis::Fast->new(server => '10.11.54.191:6379'); # isu31a
     $redis;
+}
+
+sub memd {
+  my $self = shift;
+  $self->{_membed} ||= Cache::Memcached::Fast->new({
+    servers => [ { address => 'localhost:11211' } ],
+    serialize_methods => [
+        \&encode_sereal,
+        \&decode_sereal,
+    ],
+  });
 }
 
 sub json {
@@ -162,6 +175,9 @@ post '/slots/{slot:[^/]+}/ads' => sub {
     $self->redis->sadd($self->advertiser_key($advertiser_id), $key, sub {});
 
     $self->redis->wait_all_responses;
+
+    $self->memd->set($self->asset_key($slot, $id), $content);
+
     $c->render_json($self->get_ad($c, $slot, $id));
 };
 
@@ -210,8 +226,7 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/asset' => sub {
 
     if ( $ad ) {
         $c->res->content_type($ad->{type} || 'video/mp4');
-        my $data = $self->redis->get($self->asset_key($slot, $id));
-
+        my $data = $self->memd->get($self->asset_key($slot, $id)) || $self->redis->get($self->asset_key($slot, $id));
 
         my $range = $c->req->header('Range');
         if ( !$range ) {

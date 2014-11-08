@@ -21,6 +21,13 @@ DISTRIBUTIONS
       Module::Runtime 0.012
       Sub::Exporter::Progressive 0.001006
       Variable::Magic 0.48
+  Cache-Memcached-Fast-0.22
+    pathname: K/KR/KROKI/Cache-Memcached-Fast-0.22.tar.gz
+    provides:
+      Cache::Memcached::Fast 0.22
+    requirements:
+      ExtUtils::MakeMaker 0
+      Test::More 0
   Capture-Tiny-0.27
     pathname: D/DA/DAGOLDEN/Capture-Tiny-0.27.tar.gz
     provides:
@@ -332,6 +339,38 @@ DISTRIBUTIONS
       ExtUtils::MakeMaker 0
       Test::More 0
       perl 5.006001
+  Sereal-3.003
+    pathname: Y/YV/YVES/Sereal-3.003.tar.gz
+    provides:
+      Sereal 3.003
+    requirements:
+      ExtUtils::MakeMaker 0
+      Sereal::Decoder 3.003
+      Sereal::Encoder 3.003
+      perl 5.008
+  Sereal-Decoder-3.003
+    pathname: Y/YV/YVES/Sereal-Decoder-3.003.tar.gz
+    provides:
+      Sereal::Decoder 3.003
+      Sereal::Performance undef
+    requirements:
+      ExtUtils::MakeMaker 0
+      ExtUtils::ParseXS 2.21
+      File::Find 0
+      File::Path 0
+      XSLoader 0
+      perl 5.008
+  Sereal-Encoder-3.003
+    pathname: Y/YV/YVES/Sereal-Encoder-3.003.tar.gz
+    provides:
+      Sereal::Encoder 3.003
+    requirements:
+      ExtUtils::MakeMaker 0
+      ExtUtils::ParseXS 2.21
+      File::Find 0
+      File::Path 0
+      XSLoader 0
+      perl 5.008
   Server-Starter-0.17
     pathname: K/KA/KAZUHO/Server-Starter-0.17.tar.gz
     provides:
