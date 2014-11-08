@@ -138,10 +138,10 @@ post '/slots/{slot:[^/]+}/ads' => sub {
         $key,
         'slot'        => $slot,
         'id'          => $id,
-        'title'       => $c->req->param('title'),
+        'title'       => scalar $c->req->param('title'),
         'type'        => $c->req->param('type') || $asset->content_type || 'video/mp4',
         'advertiser'  => $advertiser_id,
-        'destination' => $c->req->param('destination'),
+        'destination' => scalar $c->req->param('destination'),
         'impressions' => 0,
     );
 
