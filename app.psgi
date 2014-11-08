@@ -11,7 +11,7 @@ my $app = Isu4Final::Web->psgi($root_dir);
 builder {
     enable 'ReverseProxy';
     enable 'Static',
-        path => qr!^/javascripts/!,
+        path => qr!^/(?:javascripts|stylesheets)/!,
         root => $root_dir . '/public';
     $app;
 };
