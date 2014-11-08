@@ -1,4 +1,4 @@
-isucon4
+Isucon4
 =======
 
 ## References
