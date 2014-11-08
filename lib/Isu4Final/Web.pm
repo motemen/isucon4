@@ -139,7 +139,7 @@ post '/slots/{slot:[^/]+}/ads' => sub {
     my $id  = $self->next_ad_id;
     my $key = $self->ad_key($slot, $id);
 
-    open my $in, $asset->path or do {
+    open my $in, $c->req->param('asset.path') or do {
         $c->halt(500);
     };
     my $content = do { local $/; <$in> };
@@ -157,11 +157,6 @@ post '/slots/{slot:[^/]+}/ads' => sub {
         sub {},
     );
 
-    open my $in, $c->req->param('asset.path') or do {
-        $c->halt(500);
-    };
-    my $content = do { local $/; <$in> };
-    close $in;
     $self->redis->set($self->asset_key($slot, $id), $content, sub {});
     $self->redis->rpush($self->slot_key($slot), $id, sub {});
     $self->redis->sadd($self->advertiser_key($advertiser_id), $key, sub {});
