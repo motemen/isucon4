@@ -325,7 +325,7 @@ get '/me/final_report' => sub {
     }
 
     my $reports = {};
-    my $ad_keys = $self->redis->command('smembers' $self->advertiser_key($advertiser_id) );
+    my $ad_keys = $self->redis->command('smembers', $self->advertiser_key($advertiser_id) );
     for my $ad_key ( @$ad_keys ) {
         my %ad = $self->redis->command('hgetall', $ad_key);
         next unless %ad;
