@@ -281,7 +281,12 @@ DISTRIBUTIONS
   HTTP-Body-1.19
     pathname: G/GE/GETTY/HTTP-Body-1.19.tar.gz
     provides:
-      HTTP::Body undef
+      HTTP::Body 1.19
+      HTTP::Body::MultiPart 1.19
+      HTTP::Body::OctetStream 1.19
+      HTTP::Body::UrlEncoded 1.19
+      HTTP::Body::XForms 1.19
+      HTTP::Body::XFormsMultipart 1.19
     requirements:
       Carp 0
       Digest::MD5 0
