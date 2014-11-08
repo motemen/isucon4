@@ -139,6 +139,12 @@ post '/slots/{slot:[^/]+}/ads' => sub {
     my $id  = $self->next_ad_id;
     my $key = $self->ad_key($slot, $id);
 
+    open my $in, $asset->path or do {
+        $c->halt(500);
+    };
+    my $content = do { local $/; <$in> };
+    close $in;
+
     $self->redis->hmset(
         $key,
         'slot'        => $slot,
@@ -148,17 +154,14 @@ post '/slots/{slot:[^/]+}/ads' => sub {
         'advertiser'  => $advertiser_id,
         'destination' => scalar $c->req->param('destination'),
         'impressions' => 0,
+        sub {},
     );
 
-    open my $in, $asset->path or do {
-        $c->halt(500);
-    };
-    my $content = do { local $/; <$in> };
-    close $in;
-    $self->redis->set($self->asset_key($slot, $id), $content);
-    $self->redis->rpush($self->slot_key($slot), $id);
-    $self->redis->sadd($self->advertiser_key($advertiser_id), $key);
+    $self->redis->set($self->asset_key($slot, $id), $content, sub {});
+    $self->redis->rpush($self->slot_key($slot), $id, sub {});
+    $self->redis->sadd($self->advertiser_key($advertiser_id), $key, sub {});
 
+    $self->redis->wait_all_responses;
     $c->render_json($self->get_ad($c, $slot, $id));
 };
 
