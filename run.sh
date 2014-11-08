@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # export TMPDIR=/dev/shm
+export NYTPROF=sigexit=int:savesrc=0:start=no
 exec carton exec perl -d:NYTProf local/bin/plackup \
     --port 8080 \
     -s Starlet \
