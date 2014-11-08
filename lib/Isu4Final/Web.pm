@@ -69,7 +69,7 @@ sub next_ad {
 sub get_ad {
     my ( $self, $c, $slot, $id ) = @_;
     my $key = $self->ad_key($slot, $id);
-    my %ad  = @{ $self->redis->command('hgetall', $key) };
+    my %ad  = @{ $self->redis->command('hgetall', $key) || [] };
 
     return undef if !%ad;
 
@@ -84,7 +84,10 @@ sub get_ad {
 sub decode_user_key {
     my ( $self, $id ) = @_;
     my ( $gender, $age ) = split '/', $id;
-    return { gender => $gender eq '0' ? 'female' : $gender eq '1' ? 'male' : undef, age => int($age) };
+    return {
+        gender => ($gender // '') eq '0' ? 'female' : ($gender // '') eq '1' ? 'male' : undef,
+        age => int($age // 0),
+    };
 }
 
 sub get_log {
