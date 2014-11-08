@@ -33,7 +33,7 @@ sub advertiser_id {
 
 my $redis;
 sub redis {
-    $redis ||= Redis->new;
+    $redis ||= Redis->new(server => '10.11.54.191:6379') # isu31a
     return $redis;
 }
 
