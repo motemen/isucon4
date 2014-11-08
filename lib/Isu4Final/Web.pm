@@ -1,40 +1,19 @@
 package Isu4Final::Web;
 
-use strict;
+use 5.014;
 use warnings;
 use utf8;
 use Kossy;
-use Redis;
-use Fcntl ':flock';
-
-sub ads_dir {
-    my $self = shift;
-    my $dir = $self->root_dir . '/ads';
-    mkdir $dir unless -d $dir;
-    return $dir;
-}
-
-sub log_dir {
-    my $self = shift;
-    my $dir = $self->root_dir . '/logs';
-    mkdir $dir unless -d $dir;
-    return $dir;
-}
-
-sub log_path {
-    my ( $self, $id ) = @_;
-    return $self->log_dir . '/' . ( split '/', $id )[-1]
-}
+use Redis::Fast;
 
 sub advertiser_id {
     my ( $self, $c ) = @_;
     return $c->req->header('X-Advertiser-Id');
 }
 
-my $redis;
 sub redis {
-    $redis ||= Redis->new(server => '10.11.54.191:6379'); # isu31a
-    return $redis;
+    state $redis = Redis::Fast->new(server => '10.11.54.191:6379'); # isu31a
+    $redis;
 }
 
 sub ad_key {
@@ -60,6 +39,11 @@ sub slot_key {
 sub next_ad_id {
     my $self = shift;
     $self->redis->incr('isu4:ad-next');
+}
+
+sub log_key {
+    my ($self, $id) = @_;
+    return "isu4:log:$id";
 }
 
 sub next_ad {
@@ -106,11 +90,12 @@ sub decode_user_key {
 sub get_log {
     my ( $self, $id ) = @_;
 
+    my $llen = $self->redis->llen($self->log_key($id));
+
+    my @list = $self->redis->lrange($self->log_key($id), 0, $llen - 1);
+
     my $result = {};
-    open my $in, '<', $self->log_path($id) or return {};
-    flock $in, LOCK_SH;
-    while ( my $line = <$in> ) {
-        chomp $line;
+    for my $line (@list) {
         my ( $ad_id, $user, $agent ) = split "\t", $line;
         $result->{$ad_id} = [] unless $result->{$ad_id};
         my $user_attr = $self->decode_user_key($user);
@@ -122,7 +107,6 @@ sub get_log {
             gender => $user_attr->{gender},
         };
     }
-    close $in;
     return $result;
 }
 
@@ -300,12 +284,8 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/redirect' => sub {
         return $c->res;
     }
 
-    open my $out , '>>', $self->log_path($ad->{advertiser}) or do {
-        $c->halt(500);
-    };
-    flock $out, LOCK_EX;
-    print $out join("\t", $ad->{id}, $c->req->cookies->{isuad}, $c->req->env->{'HTTP_USER_AGENT'} . "\n");
-    close $out;
+    my $value = join "\t", $ad->{id}, $c->req->cookies->{isuad}, $c->req->env->{'HTTP_USER_AGENT'};
+    $self->redis->rpush($self->log_key($ad->{advertiser}), $value);
 
     $c->redirect($ad->{destination});
 };
@@ -398,10 +378,6 @@ post '/initialize' => sub {
 
     for my $key ( @keys ) {
         $self->redis->del($key);
-    }
-
-    for my $file ( glob($self->log_dir . '/*') ) {
-        unlink $file;
     }
 
     $c->res->content_type('text/plain');
