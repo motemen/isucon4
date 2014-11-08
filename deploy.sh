@@ -2,7 +2,7 @@
 
 set -e
 
-deploy="cd ~/deploy && git pull && carton install --deployment && supervisorctl restart isucon_perl"
+deploy="cd ~/deploy && git pull && carton install && supervisorctl restart isucon_perl"
 
 echo '---> isu31a'
 ssh isucon@203.104.111.191 "$deploy"
