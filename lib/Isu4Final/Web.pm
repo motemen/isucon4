@@ -61,6 +61,11 @@ sub next_ad_id {
     $self->redis->incr('isu4:ad-next');
 }
 
+sub log_key {
+    my ($self, $id) = @_;
+    return "isu4:log:$id";
+}
+
 sub next_ad {
     my ( $self, $c ) = @_;
     my $slot = $c->args->{slot};
@@ -105,11 +110,12 @@ sub decode_user_key {
 sub get_log {
     my ( $self, $id ) = @_;
 
+    my $llen = $self->redis->llen($self->log_key($id));
+
+    my @list = $self->redis->lrange($self->log_key($id), 0, $llen - 1);
+
     my $result = {};
-    open my $in, '<', $self->log_path($id) or return {};
-    flock $in, LOCK_SH;
-    while ( my $line = <$in> ) {
-        chomp $line;
+    for my $line (@list) {
         my ( $ad_id, $user, $agent ) = split "\t", $line;
         $result->{$ad_id} = [] unless $result->{$ad_id};
         my $user_attr = $self->decode_user_key($user);
@@ -121,7 +127,6 @@ sub get_log {
             gender => $user_attr->{gender},
         };
     }
-    close $in;
     return $result;
 }
 
@@ -299,12 +304,8 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/redirect' => sub {
         return $c->res;
     }
 
-    open my $out , '>>', $self->log_path($ad->{advertiser}) or do {
-        $c->halt(500);
-    };
-    flock $out, LOCK_EX;
-    print $out join("\t", $ad->{id}, $c->req->cookies->{isuad}, $c->req->env->{'HTTP_USER_AGENT'} . "\n");
-    close $out;
+    my $value = join "\t", $ad->{id}, $c->req->cookies->{isuad}, $c->req->env->{'HTTP_USER_AGENT'};
+    $self->redis->rpush($self->log_key($ad->{advertiser}), $value);
 
     $c->redirect($ad->{destination});
 };
