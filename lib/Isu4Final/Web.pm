@@ -5,7 +5,6 @@ use warnings;
 use utf8;
 use Kossy;
 use Redis::Fast;
-use Fcntl ':flock';
 
 sub advertiser_id {
     my ( $self, $c ) = @_;
