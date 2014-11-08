@@ -14,18 +14,6 @@ sub ads_dir {
     return $dir;
 }
 
-sub log_dir {
-    my $self = shift;
-    my $dir = $self->root_dir . '/logs';
-    mkdir $dir unless -d $dir;
-    return $dir;
-}
-
-sub log_path {
-    my ( $self, $id ) = @_;
-    return $self->log_dir . '/' . ( split '/', $id )[-1]
-}
-
 sub advertiser_id {
     my ( $self, $c ) = @_;
     return $c->req->header('X-Advertiser-Id');
@@ -398,10 +386,6 @@ post '/initialize' => sub {
 
     for my $key ( @keys ) {
         $self->redis->del($key);
-    }
-
-    for my $file ( glob($self->log_dir . '/*') ) {
-        unlink $file;
     }
 
     $c->res->content_type('text/plain');
