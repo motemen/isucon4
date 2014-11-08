@@ -90,10 +90,7 @@ sub decode_user_key {
 sub get_log {
     my ( $self, $id ) = @_;
 
-    my $llen = $self->redis->llen($self->log_key($id));
-
-    my @list = $self->redis->lrange($self->log_key($id), 0, $llen - 1);
-
+    my @list = $self->redis->lrange($self->log_key($id), 0, -1);
     my $result = {};
     for my $line (@list) {
         my ( $ad_id, $user, $agent ) = split "\t", $line;
