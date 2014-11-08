@@ -5,6 +5,7 @@ use warnings;
 use utf8;
 use Kossy;
 use Redis::Fast;
+use JSON;
 
 sub advertiser_id {
     my ( $self, $c ) = @_;
@@ -14,6 +15,10 @@ sub advertiser_id {
 sub redis {
     state $redis = Redis::Fast->new(server => '10.11.54.191:6379'); # isu31a
     $redis;
+}
+
+sub json {
+    state $json = JSON->new;
 }
 
 sub ad_key {
@@ -51,7 +56,7 @@ sub next_ad {
     my $slot = $c->args->{slot};
     my $key = $self->slot_key($slot);
 
-    my $id  = $self->redis->rpoplpush($key, $key);
+    my $id = $self->redis->rpoplpush($key, $key);
     unless ( $id ) {
         return undef;
     }
@@ -84,7 +89,10 @@ sub get_ad {
 sub decode_user_key {
     my ( $self, $id ) = @_;
     my ( $gender, $age ) = split '/', $id;
-    return { gender => $gender eq '0' ? 'female' : $gender eq '1' ? 'male' : undef, age => int($age) };
+    return {
+        gender => ($gender // '') eq '0' ? 'female' : ($gender // '') eq '1' ? 'male' : undef,
+        age => int($age // 0),
+    };
 }
 
 sub get_log {
@@ -131,15 +139,22 @@ post '/slots/{slot:[^/]+}/ads' => sub {
     my $id  = $self->next_ad_id;
     my $key = $self->ad_key($slot, $id);
 
+    open my $in, $asset->path or do {
+        $c->halt(500);
+    };
+    my $content = do { local $/; <$in> };
+    close $in;
+
     $self->redis->hmset(
         $key,
         'slot'        => $slot,
         'id'          => $id,
-        'title'       => $c->req->param('title'),
+        'title'       => scalar $c->req->param('title'),
         'type'        => $c->req->param('type') || $asset_content_type || 'video/mp4',
         'advertiser'  => $advertiser_id,
-        'destination' => $c->req->param('destination'),
+        'destination' => scalar $c->req->param('destination'),
         'impressions' => 0,
+        sub {},
     );
 
     open my $in, $c->req->param('asset.path') or do {
@@ -147,10 +162,11 @@ post '/slots/{slot:[^/]+}/ads' => sub {
     };
     my $content = do { local $/; <$in> };
     close $in;
-    $self->redis->set($self->asset_key($slot, $id), $content);
-    $self->redis->rpush($self->slot_key($slot), $id);
-    $self->redis->sadd($self->advertiser_key($advertiser_id), $key);
+    $self->redis->set($self->asset_key($slot, $id), $content, sub {});
+    $self->redis->rpush($self->slot_key($slot), $id, sub {});
+    $self->redis->sadd($self->advertiser_key($advertiser_id), $key, sub {});
 
+    $self->redis->wait_all_responses;
     $c->render_json($self->get_ad($c, $slot, $id));
 };
 
@@ -165,7 +181,7 @@ get '/slots/{slot:[^/]+}/ad' => sub {
     else {
         $c->res->status(404);
         $c->res->content_type('application/json');
-        $c->res->body(JSON->new->encode({ error => 'Not Found' }));
+        $c->res->body(json->encode({ error => 'Not Found' }));
         return $c->res;
     }
 };
@@ -175,7 +191,7 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}' => sub {
 
     my $ad = $self->get_ad($c, $c->args->{slot}, $c->args->{id});
     if ( $ad ) {
-        my $body = JSON->new->encode($ad);
+        my $body = json->encode($ad);
         $c->res->status(200);
         $c->res->header('Content-Length' => length($body));
         $c->res->content_type('application/json');
@@ -184,7 +200,7 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}' => sub {
     else {
         $c->res->status(404);
         $c->res->content_type('application/json');
-        $c->res->body(JSON->new->encode({ error => 'Not Found' }));
+        $c->res->body(json->encode({ error => 'Not Found' }));
     }
     return $c->res;
 };
@@ -204,9 +220,16 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/asset' => sub {
 
         my $range = $c->req->header('Range');
         if ( !$range ) {
-            $c->res->header('Content-Length' => length($data));
-            $c->res->body($data);
-            return $c->res;
+            die Kossy::Exception->new(200, _response => sub {
+                my $respond = shift;
+                open my $fh, '<', \$data or die $!;
+                my $writer = $respond->(
+                    [ 200, [ 'Content-Length' => length($data) ] ]
+                );
+                while (my $len = read $fh, my $buf, 8192) {
+                    $writer->write($buf);
+                }
+            });
         }
         elsif ( $range =~ /\Abytes=(\d+)?-(\d+)?\z/ )  {
             my ( $head, $tail ) = ( $1, $2 );
@@ -240,7 +263,7 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/asset' => sub {
     else {
         $c->res->status(404);
         $c->res->content_type('application/json');
-        $c->res->body(JSON->new->encode({ error => 'Not Found' }));
+        $c->res->body(json->encode({ error => 'Not Found' }));
         return $c->res;
     }
 };
@@ -256,7 +279,7 @@ post '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/count' => sub {
     unless ( $self->redis->exists($key) ) {
         $c->res->status(404);
         $c->res->content_type('application/json');
-        $c->res->body(JSON->new->encode({ error => 'Not Found' }));
+        $c->res->body(json->encode({ error => 'Not Found' }));
         return $c->res;
     }
 
@@ -277,7 +300,7 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/redirect' => sub {
    unless ( $ad ) {
         $c->res->status(404);
         $c->res->content_type('application/json');
-        $c->res->body(JSON->new->encode({ error => 'Not Found' }));
+        $c->res->body(json->encode({ error => 'Not Found' }));
         return $c->res;
     }
 
@@ -381,5 +404,25 @@ post '/initialize' => sub {
     $c->res->body('OK');
     return $c->res;
 };
+
+use Kossy::Exception;
+sub Kossy::Exception::response {
+    my $self = shift;
+    return $self->{_response} if $self->{_response};
+
+    my $code = $self->{code} || 500;
+    my $message = $self->{message};
+    $message ||= HTTP::Status::status_message($code);
+
+    my @headers = (
+         'Content-Type' => q!text/html; charset=UTF-8!,
+    );
+
+    if ($code =~ /^3/ && (my $loc = eval { $self->{location} })) {
+        push(@headers, Location => $loc);
+    }
+
+    return Kossy::Response->new($code, \@headers, [$self->html($code,$message)])->finalize;
+}
 
 1;
