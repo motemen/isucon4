@@ -299,7 +299,10 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/redirect' => sub {
         return $c->res;
     }
 
-    my $value = join "\t", $ad->{id}, $c->req->cookies->{isuad}, $c->req->env->{'HTTP_USER_AGENT'};
+    my $value = join "\t",
+        ($ad->{id} // ''),
+        ($c->req->cookies->{isuad} // ''),
+        ($c->req->env->{'HTTP_USER_AGENT'} // '');
     $self->redis->rpush($self->log_key($ad->{advertiser}), $value);
 
     $c->redirect($ad->{destination});
