@@ -126,7 +126,7 @@ post '/slots/{slot:[^/]+}/ads' => sub {
     }
 
     my $slot  = $c->args->{slot};
-    my $asset = $c->req->uploads->{'asset'};
+    my $asset_content_type = $c->req->param('asset.content_type');
 
     my $id  = $self->next_ad_id;
     my $key = $self->ad_key($slot, $id);
@@ -136,13 +136,13 @@ post '/slots/{slot:[^/]+}/ads' => sub {
         'slot'        => $slot,
         'id'          => $id,
         'title'       => $c->req->param('title'),
-        'type'        => $c->req->param('type') || $asset->content_type || 'video/mp4',
+        'type'        => $c->req->param('type') || $asset_content_type || 'video/mp4',
         'advertiser'  => $advertiser_id,
         'destination' => $c->req->param('destination'),
         'impressions' => 0,
     );
 
-    open my $in, $asset->path or do {
+    open my $in, $c->req->param('asset.path') or do {
         $c->halt(500);
     };
     my $content = do { local $/; <$in> };
