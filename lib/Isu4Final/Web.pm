@@ -212,9 +212,16 @@ get '/slots/{slot:[^/]+}/ads/{id:[0-9]+}/asset' => sub {
 
         my $range = $c->req->header('Range');
         if ( !$range ) {
-            $c->res->header('Content-Length' => length($data));
-            $c->res->body($data);
-            return $c->res;
+            die Kossy::Exception->new(200, _response => sub {
+                my $respond = shift;
+                open my $fh, '<', \$data or die $!;
+                my $writer = $respond->(
+                    [ 200, [ 'Content-Length' => length($data) ] ]
+                );
+                while (my $len = read $fh, my $buf, 8192) {
+                    $writer->write($buf);
+                }
+            });
         }
         elsif ( $range =~ /\Abytes=(\d+)?-(\d+)?\z/ )  {
             my ( $head, $tail ) = ( $1, $2 );
@@ -389,5 +396,25 @@ post '/initialize' => sub {
     $c->res->body('OK');
     return $c->res;
 };
+
+use Kossy::Exception;
+sub Kossy::Exception::response {
+    my $self = shift;
+    return $self->{_response} if $self->{_response};
+
+    my $code = $self->{code} || 500;
+    my $message = $self->{message};
+    $message ||= HTTP::Status::status_message($code);
+
+    my @headers = (
+         'Content-Type' => q!text/html; charset=UTF-8!,
+    );
+
+    if ($code =~ /^3/ && (my $loc = eval { $self->{location} })) {
+        push(@headers, Location => $loc);
+    }
+
+    return Kossy::Response->new($code, \@headers, [$self->html($code,$message)])->finalize;
+}
 
 1;
