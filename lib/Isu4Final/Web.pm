@@ -90,9 +90,9 @@ sub decode_user_key {
 sub get_log {
     my ( $self, $id ) = @_;
 
-    my @list = $self->redis->command('lrange', $self->log_key($id), 0, -1);
+    my $list = $self->redis->command('lrange', $self->log_key($id), 0, -1);
     my $result = {};
-    for my $line (@list) {
+    for my $line (@$list) {
         my ( $ad_id, $user, $agent ) = split "\t", $line;
         $result->{$ad_id} = [] unless $result->{$ad_id};
         my $user_attr = $self->decode_user_key($user);
@@ -371,9 +371,9 @@ get '/me/final_report' => sub {
 post '/initialize' => sub {
     my ($self, $c) = @_;
 
-    my @keys = $self->redis->command('keys', 'isu4:*');
+    my $keys = $self->redis->command('keys', 'isu4:*');
 
-    for my $key ( @keys ) {
+    for my $key ( @$keys ) {
         $self->redis->command('del', $key);
     }
 
