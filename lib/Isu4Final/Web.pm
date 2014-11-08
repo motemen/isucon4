@@ -139,7 +139,7 @@ post '/slots/{slot:[^/]+}/ads' => sub {
     my $id  = $self->next_ad_id;
     my $key = $self->ad_key($slot, $id);
 
-    open my $in, $c->req->param('asset.path') or do {
+    open my $in, scalar $c->req->param('asset.path') or do {
         $c->halt(500);
     };
     my $content = do { local $/; <$in> };
