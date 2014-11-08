@@ -185,6 +185,14 @@ DISTRIBUTIONS
       namespace::clean 0
       strict 0
       warnings 0
+  JSON-XS-3.01
+    pathname: M/ML/MLEHMANN/JSON-XS-3.01.tar.gz
+    provides:
+      JSON::XS 3.01
+    requirements:
+      ExtUtils::MakeMaker 0
+      Types::Serialiser 0
+      common::sense 0
   List-MoreUtils-0.33
     pathname: A/AD/ADAMK/List-MoreUtils-0.33.tar.gz
     provides:
@@ -305,6 +313,17 @@ DISTRIBUTIONS
       Time::HiRes 0
       Try::Tiny 0
       perl 5.008001
+  Redis-Jet-0.02
+    pathname: K/KA/KAZEBURO/Redis-Jet-0.02.tar.gz
+    provides:
+      Redis::Jet 0.02
+    requirements:
+      CPAN::Meta 0
+      CPAN::Meta::Prereqs 0
+      Devel::CheckCompiler 0.04
+      ExtUtils::CBuilder 0
+      Module::Build 0.38
+      perl 5.008005
   Scope-Guard-0.20
     pathname: C/CH/CHOCOLATE/Scope-Guard-0.20.tar.gz
     provides:
@@ -392,6 +411,16 @@ DISTRIBUTIONS
       Algorithm::Diff 1.19
       Exporter 0
       ExtUtils::MakeMaker 0
+  Types-Serialiser-1.0
+    pathname: M/ML/MLEHMANN/Types-Serialiser-1.0.tar.gz
+    provides:
+      JSON::PP::Boolean 1.0
+      Types::Serialiser 1.0
+      Types::Serialiser::BooleanBase 1.0
+      Types::Serialiser::Error 1.0
+    requirements:
+      ExtUtils::MakeMaker 0
+      common::sense 0
   Variable-Magic-0.55
     pathname: V/VP/VPIT/Variable-Magic-0.55.tar.gz
     provides:
@@ -417,6 +446,12 @@ DISTRIBUTIONS
       Fcntl 0
       URI 1.10
       perl 5.008001
+  common-sense-3.73
+    pathname: M/ML/MLEHMANN/common-sense-3.73.tar.gz
+    provides:
+      common::sense 3.73
+    requirements:
+      ExtUtils::MakeMaker 0
   libwww-perl-6.08
     pathname: M/MS/MSCHILLI/libwww-perl-6.08.tar.gz
     provides:
