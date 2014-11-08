@@ -69,7 +69,7 @@ sub next_ad {
 sub get_ad {
     my ( $self, $c, $slot, $id ) = @_;
     my $key = $self->ad_key($slot, $id);
-    my %ad  = %{ $self->redis->command('hgetall', $key) };
+    my %ad  = @{ $self->redis->command('hgetall', $key) };
 
     return undef if !%ad;
 
@@ -300,7 +300,7 @@ get '/me/report' => sub {
 
     my $report = {};
     for my $ad_key ( @$ad_keys ) {
-        my %ad = %{ $self->redis->command('hgetall', $ad_key) };
+        my %ad = @{ $self->redis->command('hgetall', $ad_key) };
         next unless %ad;
         $ad{impressions} = int($ad{impressions});
         $report->{$ad{id}} = { ad => \%ad, clicks => 0, impressions => $ad{'impressions'} };
@@ -327,7 +327,7 @@ get '/me/final_report' => sub {
     my $reports = {};
     my $ad_keys = $self->redis->command('smembers', $self->advertiser_key($advertiser_id) );
     for my $ad_key ( @$ad_keys ) {
-        my %ad = %{ $self->redis->command('hgetall', $ad_key) };
+        my %ad = @{ $self->redis->command('hgetall', $ad_key) };
         next unless %ad;
         $ad{impressions} = int($ad{impressions});
         $reports->{$ad{id}} = { ad => \%ad, clicks => 0, impressions => int($ad{'impressions'}) };
